@@ -72,6 +72,18 @@ class GeminiInterface:
         prompt = f"{default_instructions}\n\n{command}"
         return self._execute_prompt(prompt)
 
+    def ask_question(self, question:str) -> dict:
+        default_instructions = """
+        You are an expert in using the terminal. The user will ask a question and you will answer it.
+        
+        Your answer should be short, concise, and to the point; its meant to be displayed in a terminal, 
+        keep that in mind when writing your answer.
+        
+        This is the user's question:
+        """
+        prompt = f"{default_instructions}\n\n{question}"
+        return self._execute_prompt(prompt)
+
 
 if __name__ == "__main__":
     config = {'GEMINI_API_KEY': "***REMOVED***"}

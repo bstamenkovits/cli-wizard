@@ -1,7 +1,7 @@
 import click
 import json
 import pyperclip
-
+from cli_wizard.commands._utils import display_token_usage
 from cli_wizard.state import gemini_interface
 from cli_wizard.core.gemini_interface import NoClientError
 
@@ -49,5 +49,4 @@ def generate(description, explain=False, token_usage=False):
             click.secho(explanation)
 
     if token_usage:
-        click.secho(f"\n\nToken Usage:", bold=True)
-        click.echo(f"{click.style(token_count_in, fg='cyan')} input tokens used, {click.style(token_count_out, fg='cyan')} output tokens used.")
+        display_token_usage(token_count_in, token_count_out)
