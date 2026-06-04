@@ -9,7 +9,8 @@ from cli_wizard.core.gemini_interface import NoClientError
 @click.command()
 @click.argument('description')
 @click.option('--explain', '-e', is_flag=True, help='Explain the generated command')
-def command_for(description, explain=False):
+@click.option('--token_usage', '-t', is_flag=True, help='Display token usage')
+def generate(description, explain=False, token_usage=False):
     try:
         response = gemini_interface.generate_command(description)
         command = response.get("text")
@@ -47,5 +48,6 @@ def command_for(description, explain=False):
         except:
             click.secho(explanation)
 
-    click.secho(f"\n\nToken Usage:", bold=True)
-    click.echo(f"{click.style(token_count_in, fg='cyan')} input tokens used, {click.style(token_count_out, fg='cyan')} output tokens used.")
+    if token_usage:
+        click.secho(f"\n\nToken Usage:", bold=True)
+        click.echo(f"{click.style(token_count_in, fg='cyan')} input tokens used, {click.style(token_count_out, fg='cyan')} output tokens used.")
