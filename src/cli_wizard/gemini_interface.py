@@ -4,6 +4,10 @@ import click
 from cli_wizard.config import load_config
 
 
+class NoClientError(Exception):
+    pass
+
+
 class GeminiInterface:
 
     def __init__(self, config):
@@ -17,7 +21,22 @@ class GeminiInterface:
         self.client = genai.Client(api_key=api_key) if api_key else None
         # click.secho("Gemini client updated!", fg="green")
 
-    def generate_command(self, question:str) -> dict:
+    def _execute_prompt(self, prompt:str) -> dict:
+        if not self.client:
+            raise NoClientError("No Gemini client configured")
+
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt
+        )
+
+        usage_metadata = getattr(response, "usage_metadata", None)
+        token_count_in = getattr(usage_metadata, "candidates_token_count", 0) or 0
+        token_count_out = getattr(usage_metadata, "prompt_token_count", 0) or 0
+
+        return {'text': response.text, 'token_count_in': token_count_in, 'token_count_out': token_count_out}
+
+    def generate_command(self, description:str) -> dict:
         default_instructions = f"""
         You are an agent that helps users come up with terminal commands.
         
@@ -34,18 +53,8 @@ class GeminiInterface:
         The user's input is: 
         """.strip()
 
-        if not self.client:
-            return 0
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=f"{default_instructions}\n\n{question}"
-        )
-
-        usage_metadata = getattr(response, "usage_metadata", None)
-        token_count_in = getattr(usage_metadata, "candidates_token_count", 0) or 0
-        token_count_out = getattr(usage_metadata, "prompt_token_count", 0) or 0
-
-        return {"command": response.text, "token_count_in": token_count_in, "token_count_out": token_count_out}
+        prompt = f"{default_instructions}\n\n{description}"
+        return self._execute_prompt(prompt)
 
     def explain_command(self, command:str) -> dict:
         default_instructions = """
@@ -63,18 +72,8 @@ class GeminiInterface:
         This is the command:
         """.strip()
 
-        if not self.client:
-            return 0
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=f"{default_instructions}\n\n{command}"
-        )
-
-        usage_metadata = getattr(response, "usage_metadata", None)
-        token_count_in = getattr(usage_metadata, "candidates_token_count", 0) or 0
-        token_count_out = getattr(usage_metadata, "prompt_token_count", 0) or 0
-
-        return {"explanation": response.text, "token_count_in": token_count_in, "token_count_out": token_count_out}
+        prompt = f"{default_instructions}\n\n{command}"
+        return self._execute_prompt(prompt)
 
 
 if __name__ == "__main__":

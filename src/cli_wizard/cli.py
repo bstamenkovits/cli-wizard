@@ -2,8 +2,9 @@ import click
 import json
 from pyperclip import copy
 
-from cli_wizard.gemini_interface import GeminiInterface
+from cli_wizard.gemini_interface import GeminiInterface, NoClientError
 from cli_wizard.config import load_config, save_config, Config
+
 
 
 config_data = Config()
@@ -64,19 +65,20 @@ def config():
 
 
 @click.command()
-@click.argument('question')
+@click.argument('description')
 @click.option('--explain', '-e', is_flag=True, help='Explain the generated command')
-def ask(question, explain=False):
-    output = gem.generate_command(question)
-    command = output.get("command")
-    token_count_in = output.get("token_count_in", 0)
-    token_count_out = output.get("token_count_out", 0)
-
-    if command == 0:
+def command_for(description, explain=False):
+    try:
+        response = gem.generate_command(description)
+        command = response.get("text")
+        token_count_in = response.get("token_count_in", 0)
+        token_count_out = response.get("token_count_out", 0)
+    except NoClientError:
         click.secho("No Gemini API Key configured...", fg='red')
         click.secho("Use `wiz config` to configure your Gemini API Key.", fg='red')
+        return
 
-    command = command if command else ""
+    command = command or ""
 
     if explain:
         output = gem.explain_command(command)
@@ -106,4 +108,4 @@ def ask(question, explain=False):
 
 
 cli.add_command(config)
-cli.add_command(ask)
+cli.add_command(command_for)
