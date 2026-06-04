@@ -86,7 +86,7 @@ class GeminiInterface:
 
 
 if __name__ == "__main__":
-    config = {'GEMINI_API_KEY': "***REMOVED***"}  # not active key
+    config = {'GEMINI_API_KEY': "..."}
     gem = GeminiInterface(config)
     output = gem.generate_command("ls -a")
 
