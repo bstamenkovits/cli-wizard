@@ -1,7 +1,4 @@
 from google import genai
-import json
-import click
-from cli_wizard.config import load_config
 
 
 class NoClientError(Exception):
@@ -10,8 +7,8 @@ class NoClientError(Exception):
 
 class GeminiInterface:
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config_settings: "ConfigSettings"):
+        self.config = config_settings
         self.client = None
         self.model = "gemini-3.1-flash-lite"
         self.update_client()

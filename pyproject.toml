@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-wiz = "cli_wizard.cli:cli"
+wizard = "cli_wizard.main:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cli_wizard"]

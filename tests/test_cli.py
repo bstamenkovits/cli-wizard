@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 from cli_wizard import __version__
-from cli_wizard.cli import build_parser
+from cli_wizard.main import build_parser
 
 
 def test_parser_prog_name():

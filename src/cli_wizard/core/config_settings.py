@@ -26,7 +26,7 @@ def delete_config():
         CONFIG_FILE.unlink()
 
 
-class Config:
+class ConfigSettings:
 
     def __init__(self) -> None:
         self._config = load_config()
