@@ -13,11 +13,15 @@ authors = [
     { name = "Bela" },
 ]
 dependencies = [
+    "click",
     "rich>=13.0",
+    "google-genai",
+    "platformdirs",
+    "pyperclip",
 ]
 
 [project.scripts]
-wiz = "cli_wizard.cli:main"
+wiz = "cli_wizard.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cli_wizard"]
