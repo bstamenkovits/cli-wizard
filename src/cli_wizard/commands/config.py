@@ -3,6 +3,18 @@ from cli_wizard.state import config_settings, gemini_interface
 
 
 def display_config() -> None:
+    """
+    Displays the current configuration settings in the terminal.
+
+    This function retrieves critical configuration values such as the Gemini API Key, Operating System,
+    and Shell/Terminal from the application configuration settings. These values are formatted for
+    readability and displayed in the terminal using styled text for better clarity.
+
+    Raises:
+        KeyError: If any of the required configuration values ('GEMINI_API_KEY', 'OS', 'SHELL')
+        are missing in the application configuration.
+
+    """
     # get config values
     api_key = config_settings.get("GEMINI_API_KEY")
     os_line = config_settings.get("OS")
@@ -24,6 +36,17 @@ def display_config() -> None:
 
 @click.command()
 def config():
+    """
+    Handles configuration updates and displays current configuration settings.
+
+    This function interacts with the user to optionally edit specific configuration fields, such
+    as the Gemini API Key, Operating System, and Shell/Terminal preferences. Updated settings
+    are applied and displayed to the user.
+
+    Raises:
+        Unexpected behaviors or exceptions raised by external calls (such as `config_settings`
+        or `gemini_interface`) are not handled explicitly by this function.
+    """
     display_config()
 
     if click.confirm("Edit Config?"):

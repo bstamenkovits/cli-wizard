@@ -11,6 +11,21 @@ from cli_wizard.core.gemini_interface import NoClientError
 @click.option('--explain', '-e', is_flag=True, help='Explain the generated command')
 @click.option('--token_usage', '-t', is_flag=True, help='Display token usage')
 def generate(description, explain=False, token_usage=False):
+    """
+    Generates shell commands based on a given description via the Gemini API.
+
+    This command-line tool enables users to describe the operation they want to perform,
+    and the implementation integrates with the Gemini API to generate an appropriate
+    shell command. It also provides options to explain the command or display token
+    usage details.
+
+    Args:
+        description (str): A textual description of the command to be generated.
+        explain (bool): If True, explains the generated command in detail. Default
+            is False.
+        token_usage (bool): If True, displays the number of input and output tokens
+            used in the command generation process. Default is False.
+    """
     try:
         response = gemini_interface.generate_command(description)
         command = response.get("text")

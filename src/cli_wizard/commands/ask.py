@@ -6,7 +6,20 @@ from cli_wizard.core.gemini_interface import NoClientError
 @click.command()
 @click.argument('question')
 @click.option('--token_usage', '-t', is_flag=True, help='Display token usage')
-def ask(question, explain=False, token_usage=False):
+def ask(question, token_usage=False):
+    """
+    Handles the `ask` command to query the Gemini API with a given question. Displays the
+    retrieved answer and optionally shows token usage statistics if the respective flag is
+    provided.
+
+    Args:
+        question (str): The question to query the Gemini API with.
+        token_usage (bool, optional): If set to True, displays details about the token
+            usage for the query. Default is False.
+
+    Raises:
+        NoClientError: Indicates that the Gemini API key is not configured.
+    """
     try:
         response = gemini_interface.ask_question(question)
         answer = response.get("text")
