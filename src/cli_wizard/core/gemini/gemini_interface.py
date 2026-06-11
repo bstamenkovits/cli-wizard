@@ -1,12 +1,7 @@
 from google import genai
 from cli_wizard.core.config_settings import ConfigSettings
-
-
-class NoClientError(Exception):
-    """
-    An error raised when a Gemini client is not configured.
-    """
-    pass
+from cli_wizard.core.gemini.exceptions import NoClientError, InvalidModelError
+from cli_wizard.core.gemini.models import GeminiModels
 
 
 class GeminiInterface:
@@ -28,16 +23,17 @@ class GeminiInterface:
     def __init__(self, config_settings: ConfigSettings):
         self.config = config_settings
         self.client = None
-        self.model = "gemini-3.1-flash-lite"
-        self.update_client()
+        self.model = None
+        self.update()
 
-    def update_client(self):
+    def update(self):
         """
-        Update the gemini client used by the CLI wizard by creating a new client using the current API key in the config
+        Updates the client and model attributes based on the current configuration settings.
         """
         api_key = self.config.get("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
-        # click.secho("Gemini client updated!", fg="green")
+        # self.model = self.config.get("GEMINI_MODEL")
+        self.model = GeminiModels.GEMINI_2_5_FLASH
 
     def _execute_prompt(self, prompt:str) -> dict:
         """
@@ -54,6 +50,9 @@ class GeminiInterface:
         """
         if not self.client:
             raise NoClientError("No Gemini client configured")
+
+        if not self.model:
+            raise InvalidModelError("No Gemini model configured")
 
         response = self.client.models.generate_content(
             model=self.model,

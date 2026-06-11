@@ -7,7 +7,7 @@ The `ConfigSettings` class is used to manage configuration settings, while
 instances form the core foundation of the CLI wizard's functionality.
 """
 
-from cli_wizard.core.gemini_interface import GeminiInterface
+from cli_wizard.core.gemini.gemini_interface import GeminiInterface
 from cli_wizard.core.config_settings import ConfigSettings
 
 

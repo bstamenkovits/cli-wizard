@@ -3,7 +3,7 @@ import json
 import pyperclip
 from cli_wizard.commands._utils import display_token_usage
 from cli_wizard.state import gemini_interface
-from cli_wizard.core.gemini_interface import NoClientError
+from cli_wizard.core.gemini.gemini_interface import NoClientError
 
 
 @click.command()

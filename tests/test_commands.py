@@ -12,7 +12,7 @@ from cli_wizard import state
 from cli_wizard.commands.ask import ask
 from cli_wizard.commands.config import config as config_cmd
 from cli_wizard.commands.generate import generate
-from cli_wizard.core.gemini_interface import NoClientError
+from cli_wizard.core.gemini.gemini_interface import NoClientError
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -239,8 +239,9 @@ def test_config_edit_path_updates_settings(runner, monkeypatch, tmp_config_file)
     monkeypatch.setattr(state.config_settings, "_config", {})
 
     captured = []
+    # Refactored from 'update_client' to 'update'
     monkeypatch.setattr(
-        state.gemini_interface, "update_client", lambda: captured.append("updated")
+        state.gemini_interface, "update", lambda: captured.append("updated")
     )
 
     # Inputs: y (edit) -> api key -> os -> shell
@@ -261,7 +262,8 @@ def test_config_edit_keeps_blank_fields_unchanged(runner, monkeypatch, tmp_confi
         "_config",
         {"GEMINI_API_KEY": "keep", "OS": "macOS", "SHELL": "zsh"},
     )
-    monkeypatch.setattr(state.gemini_interface, "update_client", lambda: None)
+    # Refactored from 'update_client' to 'update'
+    monkeypatch.setattr(state.gemini_interface, "update", lambda: None)
 
     # Accept defaults for all three prompts by hitting enter.
     user_input = "y\n\n\n\n"

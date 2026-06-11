@@ -1,7 +1,7 @@
 import pytest
 
 from cli_wizard.core.config_settings import ConfigSettings
-from cli_wizard.core.gemini_interface import GeminiInterface, NoClientError
+from cli_wizard.core.gemini.gemini_interface import GeminiInterface, NoClientError
 
 
 def test_no_api_key_leaves_client_none(tmp_config_file):
@@ -40,7 +40,7 @@ def test_update_client_resets_to_none_when_key_cleared(
     # Simulate clearing the key without saving an empty string in the file:
     # ConfigSettings.set always writes; we patch the in-memory view directly.
     settings._config.pop("GEMINI_API_KEY")
-    iface.update_client()
+    iface.update()
     assert iface.client is None
 
 

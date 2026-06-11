@@ -88,7 +88,7 @@ def patch_genai(monkeypatch):
             created.append(client)
             return client
 
-        from cli_wizard.core import gemini_interface as gi
+        from cli_wizard.core.gemini import gemini_interface as gi
         monkeypatch.setattr(gi.genai, "Client", _ctor)
         return created
 
