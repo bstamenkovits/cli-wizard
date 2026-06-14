@@ -1,10 +1,13 @@
 """Tests for the Click commands.
 
-The commands import a module-level singleton (``gemini_interface``) from
-``cli_wizard.state``. We patch attributes on that singleton rather than
-trying to replace the binding inside each commands module.
+The ``ask`` and ``generate`` commands resolve their LLM helpers through the
+``cli_wizard.core.llm`` module, so we patch the helpers there. The ``config``
+command now drives an interactive questionary-based editor; rather than try to
+script that UI through CliRunner, we patch the editor helpers and assert that
+the command wires the right one for each flag.
 """
 import json
+import sys
 
 import pytest
 
@@ -12,19 +15,35 @@ from cli_wizard import state
 from cli_wizard.commands.ask import ask
 from cli_wizard.commands.config import config as config_cmd
 from cli_wizard.commands.generate import generate
-from cli_wizard.core.gemini.gemini_interface import NoClientError
+from cli_wizard.core import llm
+from cli_wizard.core.llm import ConfigError, LLMResponse
+
+# ``cli_wizard.commands`` re-exports each command at the package root, which
+# shadows the submodule attribute. Grab the real module via ``sys.modules``
+# so monkeypatch can target ``edit_config`` / ``init_config``.
+config_module = sys.modules["cli_wizard.commands.config"]
 
 
 # ---- helpers ---------------------------------------------------------------
 
 
-def _set_methods(monkeypatch, *, generate_cmd=None, explain_cmd=None, ask_q=None):
-    if generate_cmd is not None:
-        monkeypatch.setattr(state.gemini_interface, "generate_command", generate_cmd)
-    if explain_cmd is not None:
-        monkeypatch.setattr(state.gemini_interface, "explain_command", explain_cmd)
-    if ask_q is not None:
-        monkeypatch.setattr(state.gemini_interface, "ask_question", ask_q)
+def _llm_response(message="ok", tokens_input=1, tokens_output=2, model="gpt-4o"):
+    return LLMResponse(
+        model=model,
+        message=message,
+        tokens_input=tokens_input,
+        tokens_output=tokens_output,
+        tokens_total=tokens_input + tokens_output,
+    )
+
+
+def _patch_llm(monkeypatch, *, ask_question=None, generate_command=None, explain_command=None):
+    if ask_question is not None:
+        monkeypatch.setattr(llm, "ask_question", ask_question)
+    if generate_command is not None:
+        monkeypatch.setattr(llm, "generate_command", generate_command)
+    if explain_command is not None:
+        monkeypatch.setattr(llm, "explain_command", explain_command)
 
 
 @pytest.fixture(autouse=True)
@@ -45,9 +64,9 @@ def _stub_clipboard(monkeypatch):
 
 
 def test_ask_prints_answer(runner, monkeypatch):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        ask_q=lambda q: {"text": "use tar -xzf", "token_count_in": 1, "token_count_out": 2},
+        ask_question=lambda q: _llm_response(message="use tar -xzf"),
     )
 
     result = runner.invoke(ask, ["how do I extract a tarball?"])
@@ -58,9 +77,11 @@ def test_ask_prints_answer(runner, monkeypatch):
 
 
 def test_ask_token_usage_flag_shows_counts(runner, monkeypatch):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        ask_q=lambda q: {"text": "hello", "token_count_in": 13, "token_count_out": 17},
+        ask_question=lambda q: _llm_response(
+            message="hello", tokens_input=13, tokens_output=17
+        ),
     )
 
     result = runner.invoke(ask, ["--token_usage", "anything"])
@@ -72,9 +93,11 @@ def test_ask_token_usage_flag_shows_counts(runner, monkeypatch):
 
 
 def test_ask_omits_token_usage_by_default(runner, monkeypatch):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        ask_q=lambda q: {"text": "answer", "token_count_in": 9, "token_count_out": 9},
+        ask_question=lambda q: _llm_response(
+            message="answer", tokens_input=9, tokens_output=9
+        ),
     )
 
     result = runner.invoke(ask, ["question"])
@@ -83,26 +106,26 @@ def test_ask_omits_token_usage_by_default(runner, monkeypatch):
     assert "Token Usage" not in result.output
 
 
-def test_ask_handles_no_client_error(runner, monkeypatch):
+def test_ask_handles_config_error(runner, monkeypatch):
     def _raise(_q):
-        raise NoClientError("no key")
+        raise ConfigError("LLM_API_KEY is not set in the config")
 
-    _set_methods(monkeypatch, ask_q=_raise)
+    _patch_llm(monkeypatch, ask_question=_raise)
 
     result = runner.invoke(ask, ["anything"])
 
     assert result.exit_code == 0  # command returns cleanly, just prints error
-    assert "No Gemini API Key configured" in result.output
-    assert "wiz config" in result.output
+    assert "LLM_API_KEY is not set" in result.output
+    assert "wizard config" in result.output
 
 
 # ---- generate --------------------------------------------------------------
 
 
 def test_generate_prints_command_and_copies(runner, monkeypatch, _stub_clipboard):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": "ls -la", "token_count_in": 1, "token_count_out": 2},
+        generate_command=lambda d: _llm_response(message="ls -la"),
     )
 
     result = runner.invoke(generate, ["list everything"])
@@ -113,12 +136,14 @@ def test_generate_prints_command_and_copies(runner, monkeypatch, _stub_clipboard
     assert _stub_clipboard[-1] == "ls -la"
 
 
-def test_generate_handles_none_text_without_crashing(
+def test_generate_handles_none_message_without_crashing(
     runner, monkeypatch, _stub_clipboard
 ):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": None, "token_count_in": 0, "token_count_out": 0},
+        generate_command=lambda d: _llm_response(
+            message=None, tokens_input=0, tokens_output=0
+        ),
     )
 
     result = runner.invoke(generate, ["broken"])
@@ -128,24 +153,26 @@ def test_generate_handles_none_text_without_crashing(
     assert _stub_clipboard[-1] == ""
 
 
-def test_generate_handles_no_client_error(runner, monkeypatch):
+def test_generate_handles_config_error(runner, monkeypatch):
     def _raise(_d):
-        raise NoClientError("no key")
+        raise ConfigError("Mismatch between LLM_API_KEY and LLM_MODEL")
 
-    _set_methods(monkeypatch, generate_cmd=_raise)
+    _patch_llm(monkeypatch, generate_command=_raise)
 
     result = runner.invoke(generate, ["something"])
 
     assert result.exit_code == 0
-    assert "No Gemini API Key configured" in result.output
+    assert "Mismatch between LLM_API_KEY and LLM_MODEL" in result.output
 
 
 def test_generate_token_usage_sums_generate_only_when_not_explaining(
     runner, monkeypatch
 ):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": "ls", "token_count_in": 5, "token_count_out": 6},
+        generate_command=lambda d: _llm_response(
+            message="ls", tokens_input=5, tokens_output=6
+        ),
     )
 
     result = runner.invoke(generate, ["--token_usage", "list"])
@@ -156,17 +183,14 @@ def test_generate_token_usage_sums_generate_only_when_not_explaining(
 
 
 def test_generate_with_explain_renders_section(runner, monkeypatch):
-    # explain_command's return value is read with .get("explanation"); the
-    # interface actually returns 'text'. Either way the command should not
-    # crash and the Explanation header should appear.
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": "ls -a", "token_count_in": 1, "token_count_out": 1},
-        explain_cmd=lambda c: {
-            "explanation": json.dumps({"ls": "list", "-a": "all"}),
-            "token_count_in": 4,
-            "token_count_out": 8,
-        },
+        generate_command=lambda d: _llm_response(message="ls -a"),
+        explain_command=lambda c: _llm_response(
+            message=json.dumps({"ls": "list", "-a": "all"}),
+            tokens_input=4,
+            tokens_output=8,
+        ),
     )
 
     result = runner.invoke(generate, ["--explain", "list all"])
@@ -178,14 +202,16 @@ def test_generate_with_explain_renders_section(runner, monkeypatch):
 
 
 def test_generate_with_explain_falls_back_when_not_json(runner, monkeypatch):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": "ls", "token_count_in": 0, "token_count_out": 0},
-        explain_cmd=lambda c: {
-            "explanation": "not valid json at all",
-            "token_count_in": 1,
-            "token_count_out": 2,
-        },
+        generate_command=lambda d: _llm_response(
+            message="ls", tokens_input=0, tokens_output=0
+        ),
+        explain_command=lambda c: _llm_response(
+            message="not valid json at all",
+            tokens_input=1,
+            tokens_output=2,
+        ),
     )
 
     result = runner.invoke(generate, ["--explain", "list"])
@@ -196,14 +222,14 @@ def test_generate_with_explain_falls_back_when_not_json(runner, monkeypatch):
 
 
 def test_generate_explain_token_counts_are_summed(runner, monkeypatch):
-    _set_methods(
+    _patch_llm(
         monkeypatch,
-        generate_cmd=lambda d: {"text": "ls", "token_count_in": 10, "token_count_out": 20},
-        explain_cmd=lambda c: {
-            "explanation": "{}",
-            "token_count_in": 3,
-            "token_count_out": 4,
-        },
+        generate_command=lambda d: _llm_response(
+            message="ls", tokens_input=10, tokens_output=20
+        ),
+        explain_command=lambda c: _llm_response(
+            message="{}", tokens_input=3, tokens_output=4
+        ),
     )
 
     result = runner.invoke(generate, ["--explain", "--token_usage", "x"])
@@ -217,64 +243,83 @@ def test_generate_explain_token_counts_are_summed(runner, monkeypatch):
 # ---- config ----------------------------------------------------------------
 
 
-def test_config_displays_current_then_declines_edit(runner, monkeypatch):
+def test_config_default_displays_current_settings(runner, monkeypatch):
     monkeypatch.setattr(
         state.config_settings,
         "_config",
-        {"GEMINI_API_KEY": "abc", "OS": "macOS", "SHELL": "zsh"},
+        {
+            "LLM_API_KEY": "abc",
+            "LLM_MODEL": "gpt-4o",
+            "OS": "macOS",
+            "SHELL": "zsh",
+        },
     )
 
-    result = runner.invoke(config_cmd, [], input="n\n")
+    result = runner.invoke(config_cmd, [])
 
     assert result.exit_code == 0
-    assert "Current config" in result.output
     assert "macOS" in result.output
     assert "zsh" in result.output
-    # We declined the edit prompt, so no "Config saved!" line.
-    assert "Config saved" not in result.output
+    assert "gpt-4o" in result.output
 
 
-def test_config_edit_path_updates_settings(runner, monkeypatch, tmp_config_file):
-    # Start from a clean in-memory state but write through to the temp file.
+def test_config_default_marks_unset_fields(runner, monkeypatch):
     monkeypatch.setattr(state.config_settings, "_config", {})
 
-    captured = []
-    # Refactored from 'update_client' to 'update'
-    monkeypatch.setattr(
-        state.gemini_interface, "update", lambda: captured.append("updated")
-    )
-
-    # Inputs: y (edit) -> api key -> os -> shell
-    user_input = "y\nnew-key\nlinux\nbash\n"
-    result = runner.invoke(config_cmd, [], input=user_input)
+    result = runner.invoke(config_cmd, [])
 
     assert result.exit_code == 0
-    assert "Config saved" in result.output
-    assert captured == ["updated"]
-
-    written = json.loads(tmp_config_file.read_text())
-    assert written == {"GEMINI_API_KEY": "new-key", "OS": "linux", "SHELL": "bash"}
+    assert "not set" in result.output
 
 
-def test_config_edit_keeps_blank_fields_unchanged(runner, monkeypatch, tmp_config_file):
+def test_config_edit_invokes_edit_helper(runner, monkeypatch):
     monkeypatch.setattr(
         state.config_settings,
         "_config",
-        {"GEMINI_API_KEY": "keep", "OS": "macOS", "SHELL": "zsh"},
+        {"LLM_API_KEY": "k", "LLM_MODEL": "gpt-4o", "OS": "macOS", "SHELL": "zsh"},
     )
-    # Refactored from 'update_client' to 'update'
-    monkeypatch.setattr(state.gemini_interface, "update", lambda: None)
+    called = []
+    monkeypatch.setattr(config_module, "edit_config", lambda: called.append("edit"))
 
-    # Accept defaults for all three prompts by hitting enter.
-    user_input = "y\n\n\n\n"
-    result = runner.invoke(config_cmd, [], input=user_input)
+    result = runner.invoke(config_cmd, ["--edit"])
 
     assert result.exit_code == 0
-    # No writes should have occurred since all prompts kept the existing values
-    # (which equal the in-memory state).
-    assert not tmp_config_file.exists() or json.loads(
-        tmp_config_file.read_text()
-    ) == {"GEMINI_API_KEY": "keep", "OS": "macOS", "SHELL": "zsh"}
+    assert called == ["edit"]
+
+
+def test_config_init_resets_then_invokes_init_helper(runner, monkeypatch, tmp_config_file):
+    # Seed the in-memory state and the on-disk file so we can observe reset().
+    tmp_config_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_config_file.write_text(json.dumps({"LLM_API_KEY": "old"}))
+    monkeypatch.setattr(
+        state.config_settings, "_config", {"LLM_API_KEY": "old"}
+    )
+
+    called = []
+    monkeypatch.setattr(config_module, "init_config", lambda: called.append("init"))
+
+    result = runner.invoke(config_cmd, ["--init"])
+
+    assert result.exit_code == 0
+    assert called == ["init"]
+    # reset() deletes the config file on disk and clears the in-memory state.
+    assert not tmp_config_file.exists()
+    assert state.config_settings._config == {}
+
+
+def test_config_init_takes_precedence_over_edit(runner, monkeypatch):
+    monkeypatch.setattr(state.config_settings, "_config", {})
+
+    init_calls = []
+    edit_calls = []
+    monkeypatch.setattr(config_module, "init_config", lambda: init_calls.append(1))
+    monkeypatch.setattr(config_module, "edit_config", lambda: edit_calls.append(1))
+
+    result = runner.invoke(config_cmd, ["--init", "--edit"])
+
+    assert result.exit_code == 0
+    assert init_calls == [1]
+    assert edit_calls == []
 
 
 # ---- top-level CLI group ---------------------------------------------------

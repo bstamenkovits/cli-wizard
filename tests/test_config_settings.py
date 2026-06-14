@@ -21,8 +21,8 @@ def test_save_config_creates_dir_and_writes_json(tmp_config_file):
 
 
 def test_load_config_reads_back_saved_data(tmp_config_file):
-    save_config({"GEMINI_API_KEY": "secret", "OS": "macOS"})
-    assert load_config() == {"GEMINI_API_KEY": "secret", "OS": "macOS"}
+    save_config({"LLM_API_KEY": "secret", "OS": "macOS"})
+    assert load_config() == {"LLM_API_KEY": "secret", "OS": "macOS"}
 
 
 def test_delete_config_removes_file_when_present(tmp_config_file):

@@ -7,6 +7,7 @@ We have to patch the config-file location before any test imports
 import json
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from click.testing import CliRunner
@@ -36,63 +37,57 @@ def runner():
     return CliRunner()
 
 
-class _FakeUsage:
-    def __init__(self, prompt=0, candidates=0):
-        self.prompt_token_count = prompt
-        self.candidates_token_count = candidates
+def _make_completion_response(text="ok", prompt_tokens=3, completion_tokens=7):
+    """Build a stand-in for the object ``litellm.completion`` returns.
 
-
-class _FakeResponse:
-    def __init__(self, text="ok", prompt=3, candidates=7):
-        self.text = text
-        self.usage_metadata = _FakeUsage(prompt=prompt, candidates=candidates)
-
-
-class _FakeModels:
-    def __init__(self, response):
-        self._response = response
-        self.calls = []
-
-    def generate_content(self, *, model, contents):
-        self.calls.append({"model": model, "contents": contents})
-        return self._response
-
-
-class FakeGenaiClient:
-    """Stands in for ``google.genai.Client``."""
-
-    def __init__(self, *, api_key=None, response=None):
-        self.api_key = api_key
-        self.models = _FakeModels(response or _FakeResponse())
-
-
-@pytest.fixture
-def fake_response_factory():
-    def _make(text="ok", prompt=3, candidates=7):
-        return _FakeResponse(text=text, prompt=prompt, candidates=candidates)
-
-    return _make
-
-
-@pytest.fixture
-def patch_genai(monkeypatch):
-    """Patch ``google.genai.Client`` to return a FakeGenaiClient.
-
-    Returns the list of created clients so tests can inspect calls.
+    The llm module only touches ``choices[0].message.content`` and the three
+    ``usage.*`` token counters, so a SimpleNamespace tree is enough.
     """
-    created = []
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=text))],
+        usage=SimpleNamespace(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+        ),
+    )
 
-    def _factory(response=None):
-        def _ctor(*, api_key=None):
-            client = FakeGenaiClient(api_key=api_key, response=response)
-            created.append(client)
-            return client
 
-        from cli_wizard.core.gemini import gemini_interface as gi
-        monkeypatch.setattr(gi.genai, "Client", _ctor)
-        return created
+@pytest.fixture
+def fake_completion_factory():
+    """Return a factory that builds fake litellm completion responses."""
+    return _make_completion_response
 
-    return _factory
+
+@pytest.fixture
+def patch_litellm(monkeypatch):
+    """Patch ``litellm.completion`` as imported by ``cli_wizard.core.llm``.
+
+    Returns a list of recorded call kwargs so tests can inspect what was sent
+    to the model. By default, every call returns the same canned response;
+    pass ``response=`` to ``_install`` (or supply a callable) to customise.
+    """
+    calls = []
+
+    def _install(response=None):
+        if response is None:
+            response = _make_completion_response()
+
+        if callable(response):
+            responder = response
+        else:
+            def responder(**_kwargs):
+                return response
+
+        def _fake_completion(**kwargs):
+            calls.append(kwargs)
+            return responder(**kwargs)
+
+        from cli_wizard.core import llm as llm_mod
+        monkeypatch.setattr(llm_mod, "completion", _fake_completion)
+        return calls
+
+    return _install
 
 
 @pytest.fixture
