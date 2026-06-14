@@ -1,7 +1,7 @@
 """Shared fixtures for the cli-wizard test suite.
 
 We have to patch the config-file location before any test imports
-``cli_wizard.state`` -- otherwise the module-level singleton would read
+``terminal_wizard.state`` -- otherwise the module-level singleton would read
 (and later potentially write) the developer's real config file.
 """
 import json
@@ -13,9 +13,9 @@ import pytest
 from click.testing import CliRunner
 
 # Redirect the config file to a throwaway location BEFORE any
-# `cli_wizard.state` import runs. ``load_config`` and ``save_config`` read
+# `terminal_wizard.state` import runs. ``load_config`` and ``save_config`` read
 # CONFIG_FILE via module globals, so reassigning the attribute is enough.
-from cli_wizard.core import config_settings as _cs
+from terminal_wizard.core import config_settings as _cs
 
 _TMP_ROOT = Path(tempfile.mkdtemp(prefix="cli-wizard-tests-"))
 _cs.CONFIG_DIR = _TMP_ROOT / "cli-wizard"
@@ -61,7 +61,7 @@ def fake_completion_factory():
 
 @pytest.fixture
 def patch_litellm(monkeypatch):
-    """Patch ``litellm.completion`` as imported by ``cli_wizard.core.llm``.
+    """Patch ``litellm.completion`` as imported by ``terminal_wizard.core.llm``.
 
     Returns a list of recorded call kwargs so tests can inspect what was sent
     to the model. By default, every call returns the same canned response;
@@ -83,7 +83,7 @@ def patch_litellm(monkeypatch):
             calls.append(kwargs)
             return responder(**kwargs)
 
-        from cli_wizard.core import llm as llm_mod
+        from terminal_wizard.core import llm as llm_mod
         monkeypatch.setattr(llm_mod, "completion", _fake_completion)
         return calls
 

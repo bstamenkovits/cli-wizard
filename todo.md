@@ -1,7 +1,4 @@
 ToDos:
-* [ ] use questionary for better user input
-* [ ] use rich for better output
-* [ ] config: allow changing of gemini model
-* [ ] add more tests
-* [ ] readme (usage, installation, development)
-* [ ] add more examples
+* readme (usage, installation, development)
+* keep track of chat history
+* allow user to capture terminal output as context

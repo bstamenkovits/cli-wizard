@@ -1,6 +1,6 @@
 """Smoke tests for the top-level CLI entry point."""
-from cli_wizard import __version__
-from cli_wizard.main import cli
+from terminal_wizard import __version__
+from terminal_wizard.main import cli
 
 
 def test_version_constant_is_set():

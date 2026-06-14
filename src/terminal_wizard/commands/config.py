@@ -5,8 +5,8 @@ import litellm
 from rapidfuzz import process
 from rich.console import Console
 
-from cli_wizard.state import config_settings
-from cli_wizard.theme import custom_questionary_style, THEME
+from terminal_wizard.state import config_settings
+from terminal_wizard.theme import custom_questionary_style, THEME
 
 
 def display_config() -> None:

@@ -1,7 +1,7 @@
 import json
 
-from cli_wizard.core import config_settings as cs
-from cli_wizard.core.config_settings import (
+from terminal_wizard.core import config_settings as cs
+from terminal_wizard.core.config_settings import (
     ConfigSettings,
     delete_config,
     load_config,

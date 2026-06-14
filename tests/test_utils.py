@@ -1,7 +1,7 @@
 from click.testing import CliRunner
 import click
 
-from cli_wizard.commands._utils import display_token_usage
+from terminal_wizard.commands._utils import display_token_usage
 
 
 def _capture(fn, *args, **kwargs):

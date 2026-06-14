@@ -1,8 +1,8 @@
 import click
 import json
 import pyperclip
-from cli_wizard.commands._utils import display_token_usage
-from cli_wizard.core import llm
+from terminal_wizard.commands._utils import display_token_usage
+from terminal_wizard.core import llm
 
 
 

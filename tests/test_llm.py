@@ -1,15 +1,15 @@
-"""Tests for ``cli_wizard.core.llm``.
+"""Tests for ``terminal_wizard.core.llm``.
 
 The llm module reads the configured model + API key from the
-``cli_wizard.state.config_settings`` singleton and delegates the actual API
+``terminal_wizard.state.config_settings`` singleton and delegates the actual API
 call to ``litellm.completion``. We patch ``completion`` via the
 ``patch_litellm`` fixture and seed the singleton with monkeypatch'd values.
 """
 import pytest
 from litellm import APIConnectionError
 
-from cli_wizard import state
-from cli_wizard.core import llm
+from terminal_wizard import state
+from terminal_wizard.core import llm
 
 
 def _seed_config(monkeypatch, **values):

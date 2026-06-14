@@ -1,7 +1,7 @@
 """Tests for the Click commands.
 
 The ``ask`` and ``generate`` commands resolve their LLM helpers through the
-``cli_wizard.core.llm`` module, so we patch the helpers there. The ``config``
+``terminal_wizard.core.llm`` module, so we patch the helpers there. The ``config``
 command now drives an interactive questionary-based editor; rather than try to
 script that UI through CliRunner, we patch the editor helpers and assert that
 the command wires the right one for each flag.
@@ -11,17 +11,17 @@ import sys
 
 import pytest
 
-from cli_wizard import state
-from cli_wizard.commands.ask import ask
-from cli_wizard.commands.config import config as config_cmd
-from cli_wizard.commands.generate import generate
-from cli_wizard.core import llm
-from cli_wizard.core.llm import ConfigError, LLMResponse
+from terminal_wizard import state
+from terminal_wizard.commands.ask import ask
+from terminal_wizard.commands.config import config as config_cmd
+from terminal_wizard.commands.generate import generate
+from terminal_wizard.core import llm
+from terminal_wizard.core.llm import ConfigError, LLMResponse
 
-# ``cli_wizard.commands`` re-exports each command at the package root, which
+# ``terminal_wizard.commands`` re-exports each command at the package root, which
 # shadows the submodule attribute. Grab the real module via ``sys.modules``
 # so monkeypatch can target ``edit_config`` / ``init_config``.
-config_module = sys.modules["cli_wizard.commands.config"]
+config_module = sys.modules["terminal_wizard.commands.config"]
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -326,7 +326,7 @@ def test_config_init_takes_precedence_over_edit(runner, monkeypatch):
 
 
 def test_cli_group_lists_all_commands(runner):
-    from cli_wizard.main import cli
+    from terminal_wizard.main import cli
 
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
@@ -336,7 +336,7 @@ def test_cli_group_lists_all_commands(runner):
 
 @pytest.mark.parametrize("subcommand", ["config", "generate", "ask"])
 def test_each_subcommand_has_help(runner, subcommand):
-    from cli_wizard.main import cli
+    from terminal_wizard.main import cli
 
     result = runner.invoke(cli, [subcommand, "--help"])
     assert result.exit_code == 0

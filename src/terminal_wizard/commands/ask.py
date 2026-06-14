@@ -1,7 +1,7 @@
 import click
 from rich.console import Console
-from cli_wizard.commands._utils import display_token_usage
-from cli_wizard.core import llm
+from terminal_wizard.commands._utils import display_token_usage
+from terminal_wizard.core import llm
 
 
 @click.command()
@@ -12,8 +12,8 @@ def ask(question, token_usage=False):
     Send a question to the configured LLM and print the answer.
 
     If the LLM configuration is missing or invalid, the underlying
-    `cli_wizard.core.llm.ConfigError` Exception is caught and a user-facing
-    remediation message is printed via `cli_wizard.core.llm.handle_config_error`.
+    `terminal_wizard.core.llm.ConfigError` Exception is caught and a user-facing
+    remediation message is printed via `terminal_wizard.core.llm.handle_config_error`.
 
     Args:
         question (str): The question to send to the LLM.

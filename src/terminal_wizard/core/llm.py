@@ -1,7 +1,7 @@
 from typing import Union
 from dataclasses import dataclass
 from litellm import completion, ModelResponse, APIConnectionError
-from cli_wizard.state import config_settings
+from terminal_wizard.state import config_settings
 from rich.console import Console
 
 import logging

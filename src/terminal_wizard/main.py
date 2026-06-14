@@ -1,5 +1,5 @@
 import click
-from cli_wizard.commands import config, generate, ask
+from terminal_wizard.commands import config, generate, ask
 
 
 # entry point for the CLI
