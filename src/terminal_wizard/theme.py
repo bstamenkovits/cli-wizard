@@ -20,6 +20,7 @@ class THEME:
         color="#ff9d00",
         weight="bold",
     )
+    muted = Style(color="#6c7a89")
 
 
 custom_questionary_style = questionary.Style([

@@ -1,9 +1,84 @@
 import click
 import json
 import pyperclip
-from terminal_wizard.commands._utils import display_token_usage
+from rich.console import Console
+from rich.padding import Padding
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 from terminal_wizard.core import llm
+from terminal_wizard.theme import THEME
 
+
+def display_result(
+        command:str,
+        explanation:str|None=None,
+        token_count_in:int|None=None,
+        token_count_out:int|None=None
+) -> None:
+    console = Console()
+
+    highlight_color = THEME.primary.color
+    muted_color = THEME.muted.color
+
+    command_panel = Panel(
+        Text(command, style=f"bold {highlight_color}"),
+        title=f"[bold {highlight_color}]Command[/]",
+        title_align="left",
+        subtitle=f"[dim italic {muted_color}]copied to clipboard[/]",
+        subtitle_align="left",
+        border_style=muted_color,
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(command_panel)
+
+    if explanation:
+        try:
+            explanation_dict = json.loads(explanation)
+            table = Table(
+                show_header=False,
+                box=None,
+                padding=(0, 2),
+                expand=False,
+            )
+            table.add_column(style=f"bold {highlight_color}", no_wrap=True)
+            table.add_column(style="white")
+            for key, value in explanation_dict.items():
+                table.add_row(key, str(value))
+            body = table
+        except (json.JSONDecodeError, TypeError):
+            body = Text(explanation, style="white")
+
+        explanation_panel = Panel(
+            body,
+            title=f"[bold {highlight_color}]Explanation[/]",
+            title_align="left",
+            border_style=muted_color,
+            padding=(1, 2),
+        )
+        console.print()
+        console.print(explanation_panel)
+
+    if token_count_in and token_count_out:
+        usage = Text.assemble(
+            ("Token Usage: ", f"bold {highlight_color}"),
+            ("    ", ""),
+            ("▲ ", muted_color),
+            (f"{token_count_in}", f"bold {highlight_color}"),
+            ("  in", f"dim {muted_color}"),
+            ("    ", ""),
+            ("▼ ", muted_color),
+            (f"{token_count_out}", f"bold {highlight_color}"),
+            ("  out", f"dim {muted_color}"),
+            ("    ", ""),
+            ("● ", muted_color),
+            (f"{token_count_in + token_count_out}", f"bold {highlight_color}"),
+            ("  total", f"dim {muted_color}"),
+
+        )
+        console.print()
+        console.print(Padding(usage, (0, 2)))
 
 
 @click.command()
@@ -39,29 +114,14 @@ def generate(description, explain=False, token_usage=False):
     command = command or ""
     pyperclip.copy(command)
 
+    explanation = None
     if explain:
-        output = llm.explain_command(command)
-        token_count_in += output.tokens_input
-        token_count_out += output.tokens_output
-        explanation = output.message
+        response = llm.explain_command(command)
+        token_count_in += response.tokens_input
+        token_count_out += response.tokens_output
+        explanation = response.message
 
-    response = f"\n{click.style('Command', bold=True)}: \n{click.style(command, fg='cyan')}"
-    click.echo(response)
-    click.secho(f"(copied to clipboard)")
+    token_count_in = token_count_in if token_usage else None
+    token_count_out = token_count_out if token_usage else None
 
-    if explain:
-        click.secho(f"\n\nExplanation:", bold=True)
-
-        # The LLM is instructed to return JSON, but this does not always work. If
-        # the response is not valid JSON, it will be displayed as plain text
-        try:
-            explanation_dict = json.loads(explanation)
-            output = ""
-            for key, value in explanation_dict.items():
-                output += f"{click.style(key, fg='cyan')} \n\t{value}\n"
-            click.secho(output)
-        except:
-            click.secho(explanation)
-
-    if token_usage:
-        display_token_usage(token_count_in, token_count_out)
+    display_result(command, explanation, token_count_in, token_count_out)
