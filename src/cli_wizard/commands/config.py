@@ -1,11 +1,16 @@
 import click
 import questionary
-from cli_wizard.state import config_settings, gemini_interface
-from cli_wizard.theme import custom_questionary_style, THEME
+import litellm
+
+from rapidfuzz import fuzz, process
 from rich.console import Console
 
+from cli_wizard.state import config_settings, gemini_interface
+from cli_wizard.theme import custom_questionary_style, THEME
 
-def display_config() -> None:
+
+
+def display_config_() -> None:
     """
     Displays the current configuration settings in the terminal.
 
@@ -41,7 +46,7 @@ def display_config() -> None:
     click.echo('\n')
 
 
-def display_config_v2() -> None:
+def display_config() -> None:
     console = Console()
 
     items = [
@@ -72,8 +77,33 @@ def display_config_v2() -> None:
     console.print()
 
 
+def set_config(key: str, value: str, description:str) -> None:
+    config_settings.set(key, value)
+    print(f"Saved {description}: {value}\n")
+    display_config()
+    
+
+def search_for_model() -> str:
+    while True:
+        query = questionary.text("Search for model:").ask()
+        results = process.extract(query, litellm.model_list, limit=30)
+        results = [r[0] for r in results]
+        results.append("...Search Again...")
+
+        print(results)
+    
+        model = questionary.select(
+            "LLM Model:",
+            choices=results,
+        ).ask()
+        
+        if model == "...Search Again...":
+            continue
+        return model
+    
+
 def edit_config():
-    click.echo("")
+    print()
     while True:
         action = questionary.select(
             "Config Edittor",
@@ -93,20 +123,11 @@ def edit_config():
                 "Gemini API Key:",
                 default=config_settings.get("LLM_API_KEY", ""),
             ).ask()
-
-            config_settings.set("LLM_API_KEY", api_key)
-            print(f"Saved API key: {api_key}\n")
-            display_config_v2()
+            set_config("LLM_API_KEY", api_key, "LLM API Key")
 
         elif action == "LLM Model":
-            model = questionary.text(
-                "Model name:",
-                default=config_settings.get("LLM_MODEL", ""),
-            ).ask()
-
-            config_settings.set("MODEL", model)
-            print(f"Saved model: {model}\n")
-            display_config_v2()
+            model = search_for_model()
+            set_config("LLM_MODEL", model, "LLM Model")
 
         elif action == "Operating System":
             os = questionary.select(
@@ -114,27 +135,38 @@ def edit_config():
                 choices=["macOS", "Linux", "Windows"],
                 default=config_settings.get("OS", ""),
             ).ask()
-
-            config_settings.set("OS", os)
-            print(f"Saved OS: {os}\n")
-            display_config_v2()
+            set_config("OS", os, "Operating System")
 
         elif action == "Shell/Terminal":
             shell = questionary.text(
                 "Shell/Terminal:",
                 default=config_settings.get("SHELL", ""),
             ).ask()
+            set_config("SHELL", shell, "Shell/Terminal")
 
-            config_settings.set("SHELL", shell)
-            print(f"Saved Shell/Terminal: {shell}\n")
-            display_config_v2()
         elif action == "Exit":
+            display_config()
             break
 
 
+def init_config():
+    api_key = questionary.text("Gemini API Key:").ask()
+    set_config("LLM_API_KEY", api_key, "LLM API Key")
+
+    model = search_for_model()
+    set_config("LLM_MODEL", model, "LLM Model")
+
+    os = questionary.select("Operating System:", choices=["macOS", "Linux", "Windows"]).ask()
+    set_config("OS", os, "Operating System")
+
+    shell = questionary.text("Shell/Terminal:").ask()
+    set_config("SHELL", shell, "Shell/Terminal")
+
+
 @click.command()
-# @click.option('--edit', is_flag=True, help='Summarize day for a different date than today.')
-def config():
+@click.option('--edit', is_flag=True, help='Edit individual config settings')
+@click.option('--init', is_flag=True, help='Initialize new config settings')
+def config(edit, init):
     """
     Handles configuration updates and displays current configuration settings.
 
@@ -146,42 +178,19 @@ def config():
         Unexpected behaviors or exceptions raised by external calls (such as `config_settings`
         or `gemini_interface`) are not handled explicitly by this function.
     """
-    display_config_v2()
+    if init:
+        config_settings.reset()
+        display_config()
+        init_config()
+        return
 
-    # action = questionary.select(
-    #     "Config menu",
-    #     choices=[
-    #         "View config",
-    #         "Edit API key",
-    #         "Edit model",
-    #         "Back",
-    #     ],
-    # ).ask()
-
-
-    #
-    if questionary.confirm("Edit Config?", qmark=">").ask():
+    if edit:
+        display_config()
         edit_config()
-        display_config_v2()
-    #     # prompts for new values
-    #     click.echo("\n")
-    #     new_api_key = click.prompt("Gemini API Key (leave blank to keep current value)", default=config_settings.get('GEMINI_API_KEY', ""), type=str)
-    #     # new_model
-    #     new_os = click.prompt("Operating System - e.g. macOS (leave blank to keep current value)", default=config_settings.get('OS', ""), type=str)
-    #     new_shell = click.prompt("Shell/Terminal - e.g. zsh (leave blank to keep current value)", default=config_settings.get('SHELL', ""), type=str)
-    #     click.echo("\n")
-    #
-    #     # update config with new values (if no value is provided, keep using current value)
-    #     if new_api_key!="":
-    #         config_settings.set("GEMINI_API_KEY", new_api_key)
-    #     if new_os!="":
-    #         config_settings.set("OS", new_os)
-    #     if new_shell!="":
-    #         config_settings.set("SHELL", new_shell)
-    #
-    #     # display updated config
-    #     click.secho("Config saved!\n", fg="green")
-    #     display_config()
-    #
-    #     # update Gemini client with new api key from config
-    #     gemini_interface.update()
+        return
+
+    display_config()
+
+
+
+

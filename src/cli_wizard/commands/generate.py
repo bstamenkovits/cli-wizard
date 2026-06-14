@@ -2,8 +2,10 @@ import click
 import json
 import pyperclip
 from cli_wizard.commands._utils import display_token_usage
-from cli_wizard.state import gemini_interface
+# from cli_wizard.state import gemini_interface
 from cli_wizard.core.gemini.gemini_interface import NoClientError
+from cli_wizard.core import llm
+
 
 
 @click.command()
@@ -27,23 +29,22 @@ def generate(description, explain=False, token_usage=False):
             used in the command generation process. Default is False.
     """
     try:
-        response = gemini_interface.generate_command(description)
-        command = response.get("text")
-        token_count_in = response.get("token_count_in", 0)
-        token_count_out = response.get("token_count_out", 0)
-    except NoClientError:
-        click.secho("No Gemini API Key configured...", fg='red')
-        click.secho("Use `wiz config` to configure your Gemini API Key.", fg='red')
+        response = llm.generate_command(description)
+        command = response.message
+        token_count_in = response.tokens_input
+        token_count_out = response.tokens_output
+    except llm.ConfigError as e:
+        llm.handle_config_error(e)
         return
 
     command = command or ""
     pyperclip.copy(command)
 
     if explain:
-        output = gemini_interface.explain_command(command)
-        token_count_in += output.get("token_count_in", 0)
-        token_count_out += output.get("token_count_out", 0)
-        explanation = output.get("explanation")
+        output = llm.explain_command(command)
+        token_count_in += output.tokens_input
+        token_count_out += output.tokens_output
+        explanation = output.message
 
     response = f"\n{click.style('Command', bold=True)}: \n{click.style(command, fg='cyan')}"
     click.echo(response)

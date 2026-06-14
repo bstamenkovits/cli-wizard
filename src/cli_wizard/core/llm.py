@@ -1,8 +1,15 @@
 from typing import Union
 from dataclasses import dataclass
-from litellm import completion, ModelResponse, CustomStreamWrapper
+from litellm import completion, ModelResponse, APIConnectionError
 from cli_wizard.state import config_settings
+from rich.console import Console
 
+import logging
+import litellm
+
+litellm.suppress_debug_info = True
+logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
+logging.getLogger("litellm").setLevel(logging.CRITICAL)
 
 
 class ConfigError(Exception):
@@ -21,6 +28,13 @@ class LLMResponse:
     tokens_total: int
 
 
+def handle_config_error(exception: ConfigError):
+    console = Console()
+    error_message = str(exception)
+    console.print(f"[bold red]Error: {error_message}[/bold red]")
+    console.print("[red]  > Use `wizard config --edit` to edit configuration settings.[/red]")
+    console.print("[red]  > Use `wizard config --init` to setup new configuration settings.[/red]")
+
 
 def _execute_prompt(prompt: str) -> LLMResponse:
     model = config_settings.get("LLM_MODEL", None)
@@ -30,19 +44,21 @@ def _execute_prompt(prompt: str) -> LLMResponse:
         raise ConfigError("LLM_MODEL is not set in the config")
     if not api_key:
         raise ConfigError("LLM_API_KEY is not set in the config")
-
-    response = completion(
-        model=model,
-        api_key=api_key,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return LLMResponse(
-        model=model,
-        message=response.choices[0].message.content,
-        tokens_input=response.usage.prompt_tokens,
-        tokens_output=response.usage.completion_tokens,
-        tokens_total=response.usage.total_tokens
-    )
+    try:
+        response = completion(
+            model=model,
+            api_key=api_key,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return LLMResponse(
+            model=model,
+            message=response.choices[0].message.content,
+            tokens_input=response.usage.prompt_tokens,
+            tokens_output=response.usage.completion_tokens,
+            tokens_total=response.usage.total_tokens
+        )
+    except APIConnectionError as e:
+        raise ConfigError("Mismatch between LLM_API_KEY and LLM_MODEL")
 
 
 def ask_question(question:str) -> LLMResponse:
@@ -55,6 +71,7 @@ def ask_question(question:str) -> LLMResponse:
     This is the user's question:
     """
     return _execute_prompt(f"{default_instructions}\n\n{question}")
+
 
 def generate_command(description: str) -> LLMResponse:
     """

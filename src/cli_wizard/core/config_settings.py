@@ -81,3 +81,7 @@ class ConfigSettings:
         self._config[key] = value
         save_config(self._config)
         self._config = load_config()
+
+    def reset(self):
+        delete_config()
+        self._config = load_config()
