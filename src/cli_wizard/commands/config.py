@@ -5,48 +5,18 @@ import litellm
 from rapidfuzz import fuzz, process
 from rich.console import Console
 
-from cli_wizard.state import config_settings, gemini_interface
+from cli_wizard.state import config_settings
 from cli_wizard.theme import custom_questionary_style, THEME
 
 
-
-def display_config_() -> None:
-    """
-    Displays the current configuration settings in the terminal.
-
-    This function retrieves critical configuration values such as the Gemini API Key, Operating System,
-    and Shell/Terminal from the application configuration settings. These values are formatted for
-    readability and displayed in the terminal using styled text for better clarity.
-
-    Raises:
-        KeyError: If any of the required configuration values ('GEMINI_API_KEY', 'OS', 'SHELL')
-        are missing in the application configuration.
-
-    """
-    # get config values
-    api_key = config_settings.get("GEMINI_API_KEY")
-    model = config_settings.get("GEMINI_MODEL")
-    os_line = config_settings.get("OS")
-    shell_line = config_settings.get("SHELL")
-
-
-    # format values for display
-    api_key_line = f"{'Gemini API Key':<18}: {api_key}"
-    model_line = f"{'Gemini Model':<18}: {model}"
-    os_line = f"{'Operating System':<18}: {os_line}"
-    shell_line = f"{'Shell/Terminal':<18}: {shell_line}"
-
-    # display config values in terminal
-    click.secho("\nCurrent config", fg="cyan", bold=True)
-    click.secho("─" * max(len(api_key_line), len(model_line), len(os_line), len(shell_line)), fg="cyan")
-    click.secho(api_key_line, fg="magenta")
-    click.secho(model_line, fg="magenta")
-    click.secho(os_line, fg="magenta")
-    click.secho(shell_line, fg="magenta")
-    click.echo('\n')
-
-
 def display_config() -> None:
+    """
+    Render the current configuration to the terminal.
+
+    Reads the LLM API key, LLM model, operating system, and shell values from
+    ``config_settings`` and prints them in a styled table. Values that are unset
+    or empty are displayed as ``not set``.
+    """
     console = Console()
 
     items = [
@@ -78,12 +48,32 @@ def display_config() -> None:
 
 
 def set_config(key: str, value: str, description:str) -> None:
+    """
+    Persist a single configuration value and re-render the config view.
+
+    Args:
+        key (str): The configuration key to update (e.g. ``"LLM_API_KEY"``).
+        value (str): The new value to associate with ``key``.
+        description (str): Human-readable label for the setting, used in the
+            confirmation message printed to the user.
+    """
     config_settings.set(key, value)
     print(f"Saved {description}: {value}\n")
     display_config()
     
 
 def search_for_model() -> str:
+    """
+    Interactively search the litellm model catalog and return the user's pick.
+
+    Prompts the user for a query, fuzzy-matches it against ``litellm.model_list``
+    via ``rapidfuzz``, and presents the top 30 results in a selection menu. A
+    ``...Search Again...`` choice loops back to a new query so the user can
+    refine until they pick a model.
+
+    Returns:
+        The model identifier selected by the user.
+    """
     while True:
         query = questionary.text("Search for model:").ask()
         results = process.extract(query, litellm.model_list, limit=30)
@@ -103,6 +93,14 @@ def search_for_model() -> str:
     
 
 def edit_config():
+    """
+    Run an interactive menu that lets the user edit individual config fields.
+
+    Loops over a menu of editable settings (LLM API key, LLM model, operating
+    system, shell/terminal) and writes each chosen value back via
+    :func:`set_config`. Selecting ``Exit`` re-renders the configuration and
+    returns.
+    """
     print()
     while True:
         action = questionary.select(
@@ -150,6 +148,13 @@ def edit_config():
 
 
 def init_config():
+    """
+    Walk the user through a first-time configuration of every setting.
+
+    Prompts in sequence for the LLM API key, LLM model (via
+    :func:`search_for_model`), operating system, and shell/terminal, persisting
+    each answer with :func:`set_config`.
+    """
     api_key = questionary.text("Gemini API Key:").ask()
     set_config("LLM_API_KEY", api_key, "LLM API Key")
 
@@ -168,15 +173,19 @@ def init_config():
 @click.option('--init', is_flag=True, help='Initialize new config settings')
 def config(edit, init):
     """
-    Handles configuration updates and displays current configuration settings.
+    Display, edit, or initialize the cli-wizard configuration.
 
-    This function interacts with the user to optionally edit specific configuration fields, such
-    as the Gemini API Key, Operating System, and Shell/Terminal preferences. Updated settings
-    are applied and displayed to the user.
+    With no flags, prints the current configuration. With ``--edit``, opens an
+    interactive menu for changing individual fields (LLM API key, LLM model,
+    operating system, shell/terminal). With ``--init``, resets the stored
+    configuration and walks the user through setting every field from scratch.
 
-    Raises:
-        Unexpected behaviors or exceptions raised by external calls (such as `config_settings`
-        or `gemini_interface`) are not handled explicitly by this function.
+    Args:
+        edit: When ``True``, launch the interactive editor via
+            :func:`edit_config`.
+        init: When ``True``, reset existing settings and run the first-time
+            setup wizard via :func:`init_config`. Takes precedence over
+            ``edit``.
     """
     if init:
         config_settings.reset()

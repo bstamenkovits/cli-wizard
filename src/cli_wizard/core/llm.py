@@ -19,7 +19,16 @@ class ConfigError(Exception):
 @dataclass
 class LLMResponse:
     """
-    A standardized response format for LLM responses.
+    Standardised response returned by every LLM helper in this module.
+
+    Attributes:
+        model (str): Identifier of the model that produced the response.
+        message (str | None): The text content returned by the model, or
+            ``None`` when the provider did not return any content.
+        tokens_input (int): Number of prompt tokens billed for the call.
+        tokens_output (int): Number of completion tokens billed for the call.
+        tokens_total (int): Sum of input and output tokens reported by the
+            provider.
     """
     model: str
     message: str | None
@@ -29,6 +38,16 @@ class LLMResponse:
 
 
 def handle_config_error(exception: ConfigError):
+    """
+    Print a user-facing error message for a :class:`ConfigError`.
+
+    Renders the exception message in red and suggests the ``wizard config``
+    subcommands the user can run to recover.
+
+    Args:
+        exception (ConfigError): The configuration error to surface to the
+            user.
+    """
     console = Console()
     error_message = str(exception)
     console.print(f"[bold red]Error: {error_message}[/bold red]")
@@ -37,6 +56,25 @@ def handle_config_error(exception: ConfigError):
 
 
 def _execute_prompt(prompt: str) -> LLMResponse:
+    """
+    Send ``prompt`` to the configured LLM and return a normalised response.
+
+    Reads ``LLM_MODEL`` and ``LLM_API_KEY`` from the persisted configuration
+    and invokes :func:`litellm.completion`. Network or authentication failures
+    surfaced by litellm are converted into :class:`ConfigError` so callers can
+    route them through :func:`handle_config_error`.
+
+    Args:
+        prompt (str): The fully assembled user message to send to the model.
+
+    Returns:
+        LLMResponse: The model's reply along with token usage metadata.
+
+    Raises:
+        ConfigError: If ``LLM_MODEL`` or ``LLM_API_KEY`` is missing, or if
+            litellm raises :class:`APIConnectionError` (typically signalling
+            a key/model mismatch).
+    """
     model = config_settings.get("LLM_MODEL", None)
     api_key = config_settings.get("LLM_API_KEY", None)
 
@@ -62,6 +100,23 @@ def _execute_prompt(prompt: str) -> LLMResponse:
 
 
 def ask_question(question:str) -> LLMResponse:
+    """
+    Ask the LLM a free-form terminal-related question.
+
+    Wraps ``question`` in a short system prompt instructing the model to
+    answer concisely and in a terminal-friendly format, then dispatches via
+    :func:`_execute_prompt`.
+
+    Args:
+        question (str): The user's question.
+
+    Returns:
+        LLMResponse: The model's answer along with token usage metadata.
+
+    Raises:
+        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+            configuration is missing or invalid.
+    """
     default_instructions = """
     You are an expert in using the terminal. The user will ask a question and you will answer it.
 
@@ -75,18 +130,24 @@ def ask_question(question:str) -> LLMResponse:
 
 def generate_command(description: str) -> LLMResponse:
     """
-    Generates a terminal command based on the provided task description.
+    Generate a single-line terminal command for the user's described task.
 
-    This method takes a user-provided task description and constructs a
-    prompt by combining the description with default context instructions.
-    It then generates the corresponding terminal command by invoking an
-    internal method to process the prompt.
+    Builds a prompt that includes the configured ``OS`` and ``SHELL`` values so
+    the model can tailor the command to the user's environment, then dispatches
+    via :func:`_execute_prompt`. The model is instructed to return the command
+    by itself, with no surrounding explanation.
 
     Args:
-        description (str): A textual description of the task for which a terminal command is needed.
+        description (str): A natural-language description of the task the user
+            wants to accomplish.
 
     Returns:
-        dict: A dictionary containing the generated command.
+        LLMResponse: A response whose ``message`` field holds the generated
+        command.
+
+    Raises:
+        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+            configuration is missing or invalid.
     """
     default_instructions = f"""
     You are an agent that helps users come up with terminal commands.
@@ -110,17 +171,24 @@ def generate_command(description: str) -> LLMResponse:
 
 def explain_command(command: str) -> LLMResponse:
     """
-    Explains the functionality of a given terminal command and its components in a short
-    and concise manner. The explanation for each part of the command, such as keywords,
-    arguments, or flags, is returned as a JSON object with descriptions of their purpose.
+    Ask the LLM to break a terminal command down into its parts.
+
+    The model is instructed to return a JSON object whose keys are segments
+    of the command (keywords, flags, arguments, etc.) and whose values are
+    one-or-two-sentence explanations. The returned ``message`` is the raw
+    string emitted by the model; callers are responsible for parsing it (the
+    model does not always produce strictly valid JSON).
 
     Args:
-        command (str): The terminal command to be analyzed and explained.
+        command (str): The terminal command to explain.
 
     Returns:
-        dict: A JSON-like dictionary where each key represents a segment of the command
-        (e.g., keywords, flags, or arguments) and each value contains a brief explanation
-        of the segment's function.
+        LLMResponse: A response whose ``message`` field holds the JSON-formatted
+        explanation string.
+
+    Raises:
+        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+            configuration is missing or invalid.
     """
     default_instructions = """
     You are an expert in using the terminal. The user will provide a command and you will explain what it does.

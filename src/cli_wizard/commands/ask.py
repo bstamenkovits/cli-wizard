@@ -1,8 +1,6 @@
 import click
 from rich.console import Console
 from cli_wizard.commands._utils import display_token_usage
-from cli_wizard.state import gemini_interface
-from cli_wizard.core.gemini.gemini_interface import NoClientError
 from cli_wizard.core import llm
 
 
@@ -11,17 +9,16 @@ from cli_wizard.core import llm
 @click.option('--token_usage', '-t', is_flag=True, help='Display token usage')
 def ask(question, token_usage=False):
     """
-    Handles the `ask` command to query the Gemini API with a given question. Displays the
-    retrieved answer and optionally shows token usage statistics if the respective flag is
-    provided.
+    Send a question to the configured LLM and print the answer.
+
+    If the LLM configuration is missing or invalid, the underlying
+    :class:`cli_wizard.core.llm.ConfigError` is caught and a user-facing
+    remediation message is printed via :func:`cli_wizard.core.llm.handle_config_error`.
 
     Args:
-        question (str): The question to query the Gemini API with.
-        token_usage (bool, optional): If set to True, displays details about the token
-            usage for the query. Default is False.
-
-    Raises:
-        NoClientError: Indicates that the Gemini API key is not configured.
+        question (str): The question to send to the LLM.
+        token_usage (bool, optional): If True, print input/output token counts
+            after the answer. Defaults to False.
     """
     console = Console()
     try:

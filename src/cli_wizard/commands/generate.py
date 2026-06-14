@@ -2,8 +2,6 @@ import click
 import json
 import pyperclip
 from cli_wizard.commands._utils import display_token_usage
-# from cli_wizard.state import gemini_interface
-from cli_wizard.core.gemini.gemini_interface import NoClientError
 from cli_wizard.core import llm
 
 
@@ -14,19 +12,20 @@ from cli_wizard.core import llm
 @click.option('--token_usage', '-t', is_flag=True, help='Display token usage')
 def generate(description, explain=False, token_usage=False):
     """
-    Generates shell commands based on a given description via the Gemini API.
+    Generate a shell command from a natural-language description.
 
-    This command-line tool enables users to describe the operation they want to perform,
-    and the implementation integrates with the Gemini API to generate an appropriate
-    shell command. It also provides options to explain the command or display token
-    usage details.
+    Sends ``description`` to the configured LLM, prints the resulting command,
+    and copies it to the system clipboard. With ``--explain``, also asks the
+    LLM to break the command down and prints the explanation (rendered as
+    key/value pairs when the response is valid JSON, otherwise as plain text).
+    With ``--token_usage``, prints token usage totals after the output.
 
     Args:
-        description (str): A textual description of the command to be generated.
-        explain (bool): If True, explains the generated command in detail. Default
-            is False.
-        token_usage (bool): If True, displays the number of input and output tokens
-            used in the command generation process. Default is False.
+        description (str): A textual description of the command to generate.
+        explain (bool): If True, also generate and print an explanation of the
+            command. Defaults to False.
+        token_usage (bool): If True, print token usage details for all LLM
+            calls made by this invocation. Defaults to False.
     """
     try:
         response = llm.generate_command(description)

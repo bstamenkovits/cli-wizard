@@ -58,30 +58,58 @@ def delete_config() -> None:
 
 class ConfigSettings:
     """
-    Handles configuration settings management.
+    In-memory accessor for the persisted user configuration.
 
-    This class provides methods for retrieving and updating application
-    configuration settings. It utilizes a configuration loading and saving
-    mechanism to ensure that updates are persisted.
-
-    The user settings are stored inside of a JSON file in the user's
-    configuration directory.
+    Loads the JSON config file once on construction and exposes ``get``,
+    ``set``, and ``reset`` methods. Every mutating call writes the file back to
+    disk so the in-memory and on-disk state stay in sync.
 
     Attributes:
-        None
+        _config (dict): The configuration loaded from
+            :data:`CONFIG_FILE`, kept in sync with disk on every mutation.
     """
 
     def __init__(self) -> None:
+        """
+        Load the on-disk configuration into memory.
+        """
         self._config = load_config()
 
     def get(self, key: str, default=None):
+        """
+        Return the value stored under ``key``, or ``default`` if absent.
+
+        Args:
+            key (str): The configuration key to look up.
+            default: Value to return when ``key`` is not present in the
+                configuration. Defaults to ``None``.
+
+        Returns:
+            The stored value for ``key`` if present, otherwise ``default``.
+        """
         return self._config.get(key, default)
 
     def set(self, key: str, value):
+        """
+        Store ``value`` under ``key`` and persist the change to disk.
+
+        After writing, the in-memory state is reloaded from disk so subsequent
+        reads reflect exactly what was saved.
+
+        Args:
+            key (str): The configuration key to write.
+            value: The value to associate with ``key``. Must be JSON
+                serialisable.
+        """
         self._config[key] = value
         save_config(self._config)
         self._config = load_config()
 
     def reset(self):
+        """
+        Delete the on-disk configuration and clear the in-memory state.
+
+        After this call, :meth:`get` returns ``default`` for every key.
+        """
         delete_config()
         self._config = load_config()
