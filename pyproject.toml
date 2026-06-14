@@ -14,7 +14,8 @@ authors = [
 ]
 dependencies = [
     "click",
-    "rich>=13.0",
+    "rich",
+    "questionary",
     "google-genai",
     "litellm",
     "platformdirs",
