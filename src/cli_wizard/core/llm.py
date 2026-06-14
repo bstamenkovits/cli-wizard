@@ -19,16 +19,16 @@ class ConfigError(Exception):
 @dataclass
 class LLMResponse:
     """
-    Standardised response returned by every LLM helper in this module.
+    Standardized response returned by every LLM helper in this module.
 
     Attributes:
-        model (str): Identifier of the model that produced the response.
+        model (str): Identifier of the model that produced the response
         message (str | None): The text content returned by the model, or
-            ``None`` when the provider did not return any content.
-        tokens_input (int): Number of prompt tokens billed for the call.
-        tokens_output (int): Number of completion tokens billed for the call.
+            `None` when the provider did not return any content
+        tokens_input (int): Number of prompt tokens billed for the call
+        tokens_output (int): Number of completion tokens billed for the call
         tokens_total (int): Sum of input and output tokens reported by the
-            provider.
+            provider
     """
     model: str
     message: str | None
@@ -39,9 +39,9 @@ class LLMResponse:
 
 def handle_config_error(exception: ConfigError):
     """
-    Print a user-facing error message for a :class:`ConfigError`.
+    Print a user-facing error message for a `ConfigError` exception.
 
-    Renders the exception message in red and suggests the ``wizard config``
+    Renders the exception message in red and suggests the `wizard config`
     subcommands the user can run to recover.
 
     Args:
@@ -57,12 +57,12 @@ def handle_config_error(exception: ConfigError):
 
 def _execute_prompt(prompt: str) -> LLMResponse:
     """
-    Send ``prompt`` to the configured LLM and return a normalised response.
+    Send `prompt` to the configured LLM and return a normalised response.
 
-    Reads ``LLM_MODEL`` and ``LLM_API_KEY`` from the persisted configuration
-    and invokes :func:`litellm.completion`. Network or authentication failures
-    surfaced by litellm are converted into :class:`ConfigError` so callers can
-    route them through :func:`handle_config_error`.
+    Reads `LLM_MODEL` and `LLM_API_KEY` from the persisted configuration
+    and invokes `litellm.completion`. Network or authentication failures
+    surfaced by litellm are converted into `ConfigError` so callers can
+    route them through `handle_config_error`.
 
     Args:
         prompt (str): The fully assembled user message to send to the model.
@@ -71,7 +71,7 @@ def _execute_prompt(prompt: str) -> LLMResponse:
         LLMResponse: The model's reply along with token usage metadata.
 
     Raises:
-        ConfigError: If ``LLM_MODEL`` or ``LLM_API_KEY`` is missing, or if
+        ConfigError: If `LLM_MODEL` or `LLM_API_KEY` is missing, or if
             litellm raises :class:`APIConnectionError` (typically signalling
             a key/model mismatch).
     """
@@ -103,9 +103,9 @@ def ask_question(question:str) -> LLMResponse:
     """
     Ask the LLM a free-form terminal-related question.
 
-    Wraps ``question`` in a short system prompt instructing the model to
+    Wraps `question` in a short system prompt instructing the model to
     answer concisely and in a terminal-friendly format, then dispatches via
-    :func:`_execute_prompt`.
+    `_execute_prompt`.
 
     Args:
         question (str): The user's question.
@@ -114,7 +114,7 @@ def ask_question(question:str) -> LLMResponse:
         LLMResponse: The model's answer along with token usage metadata.
 
     Raises:
-        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+        ConfigError: Propagated from `_execute_prompt` when the LLM
             configuration is missing or invalid.
     """
     default_instructions = """
@@ -132,21 +132,21 @@ def generate_command(description: str) -> LLMResponse:
     """
     Generate a single-line terminal command for the user's described task.
 
-    Builds a prompt that includes the configured ``OS`` and ``SHELL`` values so
+    Builds a prompt that includes the configured `OS` and `SHELL` values so
     the model can tailor the command to the user's environment, then dispatches
-    via :func:`_execute_prompt`. The model is instructed to return the command
+    via `_execute_prompt`. The model is instructed to return the command
     by itself, with no surrounding explanation.
 
     Args:
         description (str): A natural-language description of the task the user
-            wants to accomplish.
+            wants to achieve
 
     Returns:
-        LLMResponse: A response whose ``message`` field holds the generated
+        LLMResponse: A response, whose `message` field holds the generated
         command.
 
     Raises:
-        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+        ConfigError: Propagated from `_execute_prompt` when the LLM
             configuration is missing or invalid.
     """
     default_instructions = f"""
@@ -175,7 +175,7 @@ def explain_command(command: str) -> LLMResponse:
 
     The model is instructed to return a JSON object whose keys are segments
     of the command (keywords, flags, arguments, etc.) and whose values are
-    one-or-two-sentence explanations. The returned ``message`` is the raw
+    one-or-two-sentence explanations. The returned `message` is the raw
     string emitted by the model; callers are responsible for parsing it (the
     model does not always produce strictly valid JSON).
 
@@ -183,11 +183,11 @@ def explain_command(command: str) -> LLMResponse:
         command (str): The terminal command to explain.
 
     Returns:
-        LLMResponse: A response whose ``message`` field holds the JSON-formatted
+        LLMResponse: A response whose `message` field holds the JSON-formatted
         explanation string.
 
     Raises:
-        ConfigError: Propagated from :func:`_execute_prompt` when the LLM
+        ConfigError: Propagated from `_execute_prompt` when the LLM
             configuration is missing or invalid.
     """
     default_instructions = """
@@ -200,7 +200,7 @@ def explain_command(command: str) -> LLMResponse:
     Example input: ls -a
 
     Example output: {"ls": "List files in the current directory", "-a": "Show hidden files"}
-    Incorrect output: ```json {...}```
+    Incorrect output: ``json {...}``
 
     This is the command:
     """.strip()

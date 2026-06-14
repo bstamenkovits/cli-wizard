@@ -16,7 +16,6 @@ dependencies = [
     "click",
     "rich",
     "questionary",
-    "google-genai",
     "litellm",
     "platformdirs",
     "pyperclip",

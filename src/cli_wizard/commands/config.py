@@ -2,7 +2,7 @@ import click
 import questionary
 import litellm
 
-from rapidfuzz import fuzz, process
+from rapidfuzz import process
 from rich.console import Console
 
 from cli_wizard.state import config_settings
@@ -14,8 +14,8 @@ def display_config() -> None:
     Render the current configuration to the terminal.
 
     Reads the LLM API key, LLM model, operating system, and shell values from
-    ``config_settings`` and prints them in a styled table. Values that are unset
-    or empty are displayed as ``not set``.
+    `config_settings` and prints them in a styled table. Values that are unset
+    or empty are displayed as `not set`.
     """
     console = Console()
 
@@ -52,8 +52,8 @@ def set_config(key: str, value: str, description:str) -> None:
     Persist a single configuration value and re-render the config view.
 
     Args:
-        key (str): The configuration key to update (e.g. ``"LLM_API_KEY"``).
-        value (str): The new value to associate with ``key``.
+        key (str): The configuration key to update (e.g. `"LLM_API_KEY"`).
+        value (str): The new value to associate with `key`.
         description (str): Human-readable label for the setting, used in the
             confirmation message printed to the user.
     """
@@ -62,13 +62,13 @@ def set_config(key: str, value: str, description:str) -> None:
     display_config()
     
 
-def search_for_model() -> str:
+def search_for_model() -> str | None:
     """
     Interactively search the litellm model catalog and return the user's pick.
 
-    Prompts the user for a query, fuzzy-matches it against ``litellm.model_list``
-    via ``rapidfuzz``, and presents the top 30 results in a selection menu. A
-    ``...Search Again...`` choice loops back to a new query so the user can
+    Prompts the user for a query, fuzzy-matches it against `litellm.model_list`
+    via `rapidfuzz`, and presents the top 30 results in a selection menu. A
+    `"...Search Again..."` choice loops back to a new query so the user can
     refine until they pick a model.
 
     Returns:
@@ -77,7 +77,7 @@ def search_for_model() -> str:
     while True:
         query = questionary.text("Search for model:").ask()
         results = process.extract(query, litellm.model_list, limit=30)
-        results = [r[0] for r in results]
+        results = [str(r[0]) for r in results]
         results.append("...Search Again...")
 
         print(results)
@@ -89,7 +89,7 @@ def search_for_model() -> str:
         
         if model == "...Search Again...":
             continue
-        return model
+        return str(model)
     
 
 def edit_config():
@@ -98,13 +98,13 @@ def edit_config():
 
     Loops over a menu of editable settings (LLM API key, LLM model, operating
     system, shell/terminal) and writes each chosen value back via
-    :func:`set_config`. Selecting ``Exit`` re-renders the configuration and
+    `set_config`. Selecting `Exit` re-renders the configuration and
     returns.
     """
     print()
     while True:
         action = questionary.select(
-            "Config Edittor",
+            "Config Editor",
             choices=[
                 "LLM API Key",
                 "LLM Model",
@@ -124,7 +124,7 @@ def edit_config():
             set_config("LLM_API_KEY", api_key, "LLM API Key")
 
         elif action == "LLM Model":
-            model = search_for_model()
+            model = search_for_model() or ""
             set_config("LLM_MODEL", model, "LLM Model")
 
         elif action == "Operating System":
@@ -152,13 +152,13 @@ def init_config():
     Walk the user through a first-time configuration of every setting.
 
     Prompts in sequence for the LLM API key, LLM model (via
-    :func:`search_for_model`), operating system, and shell/terminal, persisting
-    each answer with :func:`set_config`.
+    `search_for_model`), operating system, and shell/terminal, persisting
+    each answer with `set_config`.
     """
     api_key = questionary.text("Gemini API Key:").ask()
     set_config("LLM_API_KEY", api_key, "LLM API Key")
 
-    model = search_for_model()
+    model = search_for_model() or ""
     set_config("LLM_MODEL", model, "LLM Model")
 
     os = questionary.select("Operating System:", choices=["macOS", "Linux", "Windows"]).ask()
@@ -175,17 +175,15 @@ def config(edit, init):
     """
     Display, edit, or initialize the cli-wizard configuration.
 
-    With no flags, prints the current configuration. With ``--edit``, opens an
+    With no flags, prints the current configuration. With `--edit`, opens an
     interactive menu for changing individual fields (LLM API key, LLM model,
-    operating system, shell/terminal). With ``--init``, resets the stored
+    operating system, shell/terminal). With `--init`, resets the stored
     configuration and walks the user through setting every field from scratch.
 
     Args:
-        edit: When ``True``, launch the interactive editor via
-            :func:`edit_config`.
-        init: When ``True``, reset existing settings and run the first-time
-            setup wizard via :func:`init_config`. Takes precedence over
-            ``edit``.
+        edit: When `True`, launch the interactive editor via `edit_config`.
+        init: When `True`, reset existing settings and run the first-time
+            setup wizard via `init_config`. Takes precedence over `edit`.
     """
     if init:
         config_settings.reset()

@@ -14,11 +14,11 @@ def generate(description, explain=False, token_usage=False):
     """
     Generate a shell command from a natural-language description.
 
-    Sends ``description`` to the configured LLM, prints the resulting command,
-    and copies it to the system clipboard. With ``--explain``, also asks the
+    Sends `description` to the configured LLM, prints the resulting command,
+    and copies it to the system clipboard. With `--explain`, also asks the
     LLM to break the command down and prints the explanation (rendered as
     key/value pairs when the response is valid JSON, otherwise as plain text).
-    With ``--token_usage``, prints token usage totals after the output.
+    With `--token_usage`, prints token usage totals after the output.
 
     Args:
         description (str): A textual description of the command to generate.

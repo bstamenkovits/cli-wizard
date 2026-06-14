@@ -12,8 +12,8 @@ def ask(question, token_usage=False):
     Send a question to the configured LLM and print the answer.
 
     If the LLM configuration is missing or invalid, the underlying
-    :class:`cli_wizard.core.llm.ConfigError` is caught and a user-facing
-    remediation message is printed via :func:`cli_wizard.core.llm.handle_config_error`.
+    `cli_wizard.core.llm.ConfigError` Exception is caught and a user-facing
+    remediation message is printed via `cli_wizard.core.llm.handle_config_error`.
 
     Args:
         question (str): The question to send to the LLM.
